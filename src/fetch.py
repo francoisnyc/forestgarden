@@ -10,6 +10,11 @@ import requests
 log = logging.getLogger(__name__)
 
 
+def _get_headers():
+    token = os.environ.get("NYC_OPEN_DATA_TOKEN")
+    return {"X-App-Token": token} if token else {}
+
+
 def _build_soda_url(base_url, limit, offset):
     separator = "&" if "?" in base_url else "?"
     params = f"$limit={limit}&$offset={offset}"
@@ -28,7 +33,7 @@ def fetch_mappluto(config, output_path):
         url = _build_soda_url(base_url, limit=batch_size, offset=offset)
         log.info("Fetching MapPLUTO offset=%d ...", offset)
 
-        resp = requests.get(url, timeout=120)
+        resp = requests.get(url, headers=_get_headers(), timeout=120)
         resp.raise_for_status()
         data = resp.json()
 
@@ -64,7 +69,7 @@ def fetch_deed_restrictions(config, output_path):
         url = _build_soda_url(base_url, limit=batch_size, offset=offset)
         log.info("Fetching deed restrictions offset=%d ...", offset)
 
-        resp = requests.get(url, timeout=120)
+        resp = requests.get(url, headers=_get_headers(), timeout=120)
         resp.raise_for_status()
         records = resp.json()
 
