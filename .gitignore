@@ -1,0 +1,7 @@
+data/raw/
+data/scout.db
+output/
+__pycache__/
+*.pyc
+.venv/
+.superpowers/
