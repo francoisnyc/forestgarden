@@ -1,0 +1,49 @@
+sources:
+  mappluto:
+    base_url: "https://data.cityofnewyork.us/resource/f888-ni5f.geojson"
+    batch_size: 5000
+  deed_restrictions:
+    base_url: "https://data.cityofnewyork.us/resource/rfu7-paqe.json"
+
+agencies:
+  primary:
+    - "HPD"
+    - "DCAS"
+    - "MTA"
+  broad:
+    - "DOT"
+    - "DEP"
+    - "NYCHA"
+    - "SCA"
+    - "DOE"
+    - "PARKS"
+
+zoning_minimums:
+  R1-1:  { area: 7125, frontage: 75 }
+  R1-2:  { area: 4750, frontage: 50 }
+  R1-2A: { area: 4750, frontage: 50 }
+  R2:    { area: 2850, frontage: 30 }
+  R2A:   { area: 2850, frontage: 30 }
+  R2X:   { area: 2850, frontage: 30 }
+  R3X:   { area: 2850, frontage: 30 }
+  R3-1:  { area: 2850, frontage: 30 }
+  R3-2:  { area: 2850, frontage: 30 }
+  R3A:   { area: 2375, frontage: 25 }
+  R4:    { area: 2850, frontage: 30 }
+  R4-1:  { area: 2375, frontage: 25 }
+  R4A:   { area: 2375, frontage: 25 }
+  R4B:   { area: 2375, frontage: 25 }
+  R5:    { area: 2850, frontage: 30 }
+  R5A:   { area: 2375, frontage: 25 }
+  R5B:   { area: 2375, frontage: 25 }
+  R5D:   { area: 2375, frontage: 25 }
+  R6:    { area: 1700, frontage: 18 }
+  R7:    { area: 1700, frontage: 18 }
+  R8:    { area: 1700, frontage: 18 }
+  R9:    { area: 1700, frontage: 18 }
+  R10:   { area: 1700, frontage: 18 }
+  default: { area: 1700, frontage: 18 }
+
+filters:
+  compactness_ratio: 0.4
+  vacant_land_use: "11"
