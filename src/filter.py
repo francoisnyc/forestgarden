@@ -6,6 +6,7 @@ from typing import Optional
 from shapely.geometry import shape
 
 from src.zoning import get_zoning_minimums
+from src.solar import build_shadow_index, compute_shadow_risk
 
 log = logging.getLogger(__name__)
 
@@ -115,6 +116,10 @@ def process_lots(data_path: str, deed_restrictions_path: str, config: dict, db_c
     with open(data_path) as f:
         raw_data = json.load(f)
 
+    shadow_index = build_shadow_index(
+        raw_data if isinstance(raw_data, list) else []
+    )
+
     deed_lookup = {}
     with open(deed_restrictions_path) as f:
         deed_records = json.load(f)
@@ -214,6 +219,12 @@ def process_lots(data_path: str, deed_restrictions_path: str, config: dict, db_c
             "flags": json.dumps(flags),
             "wkt": wkt,
         }
+        shadow_result = compute_shadow_risk(
+            props.get("xcoord"), props.get("ycoord"),
+            str(props.get("borocode", "")), shadow_index,
+        )
+        db_lot["shadow_risk"] = shadow_result["shadow_risk"]
+        db_lot["shadow_detail"] = json.dumps(shadow_result["shadow_detail"])
         insert_lot(db_conn, db_lot)
 
         for deed_rec in deed_lookup.get(bbl, []):
