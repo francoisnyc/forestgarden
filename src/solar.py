@@ -124,12 +124,13 @@ def _make_detail(floors, distance_ft):
     """Build the detail dict for one direction."""
     if floors <= 0:
         return None
-    height = floors * FLOOR_HEIGHT_FT
+    height = int(floors * FLOOR_HEIGHT_FT)
     return {
-        "numfloors": floors,
+        "numfloors": int(floors),
         "height_ft": height,
         "distance_ft": round(distance_ft, 1),
         "shadow_reach_8am": round(height * _SHADOW_MULTIPLIERS["8am"], 1),
+        "shadow_reach_10am": round(height * _SHADOW_MULTIPLIERS["10am"], 1),
         "shadow_reach_noon": round(height * _SHADOW_MULTIPLIERS["noon"], 1),
     }
 
@@ -174,7 +175,14 @@ def compute_shadow_risk(
         combined = min(combined + 1, 2)
     final_risk = level_names[combined]
 
-    detail = {"risk": final_risk}
+    # Human-readable note
+    notes = {
+        "high": "shadowed through noon (winter solstice)",
+        "medium": "shadowed at 10AM, clear by noon",
+        "low": "morning sun clears by 10AM",
+    }
+
+    detail = {"risk": final_risk, "note": notes[final_risk]}
     south_detail = _make_detail(s_floors, s_dist)
     east_detail = _make_detail(e_floors, e_dist)
     if south_detail:
