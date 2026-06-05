@@ -33,7 +33,7 @@ Stage-based CLI pipeline: `fetch → filter → map`. Each stage independently r
 - `config.yaml` — all thresholds, API endpoints, agency lists
 
 ## Data Sources
-- **MapPLUTO** — `f888-ni5f` on NYC Open Data (GeoJSON via SODA API)
+- **MapPLUTO** — `64uk-42ks` on NYC Open Data (flat JSON via SODA API, lat/lon points)
 - **DCAS Deed Restrictions** — `rfu7-paqe` on NYC Open Data
 
 ## Key Concepts
@@ -41,6 +41,13 @@ Stage-based CLI pipeline: `fetch → filter → map`. Each stage independently r
 - Buildability tests: undersized area, narrow frontage, no residential FAR, irregular geometry, easements
 - All thresholds in `config.yaml` — edit there, not in code
 - `fail_reasons` field on each lot makes every inclusion auditable
+
+## API Token (optional)
+Set `NYC_OPEN_DATA_TOKEN` for higher rate limits when fetching the full dataset:
+```bash
+export NYC_OPEN_DATA_TOKEN=your_token_here
+```
+Register for a free token at https://data.cityofnewyork.us/profile/edit/developer_settings
 
 ## Testing
 ```bash

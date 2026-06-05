@@ -1,6 +1,6 @@
 sources:
   mappluto:
-    base_url: "https://data.cityofnewyork.us/resource/f888-ni5f.geojson"
+    base_url: "https://data.cityofnewyork.us/resource/64uk-42ks.json"
     batch_size: 5000
   deed_restrictions:
     base_url: "https://data.cityofnewyork.us/resource/rfu7-paqe.json"
@@ -47,3 +47,9 @@ zoning_minimums:
 filters:
   compactness_ratio: 0.4
   vacant_land_use: "11"
+  excluded_land_uses:
+    - "7"   # transportation & utility
+    - "9"   # open space & outdoor recreation
+  excluded_zonings:
+    - "PARK"
+    - "BPC"

@@ -1,5 +1,6 @@
 """Map generation and GeoJSON export."""
 
+import html
 import json
 import logging
 import os
@@ -57,8 +58,12 @@ def generate_map(conn: sqlite3.Connection, output_path: str, primary_agencies: l
     """Generate an interactive Folium HTML map of candidate lots."""
     lots = get_all_lots(conn)
     m = folium.Map(location=_NYC_CENTER, zoom_start=_NYC_ZOOM, tiles="CartoDB positron")
-    primary_cluster = MarkerCluster(name="Primary Targets (HPD/DCAS/MTA)")
-    broad_cluster = MarkerCluster(name="Broad Net (other agencies)")
+    primary_group = folium.FeatureGroup(name="Primary Targets (HPD/DCAS/MTA)", show=True)
+    broad_group = folium.FeatureGroup(name="Broad Net (other agencies)", show=True)
+    primary_cluster = MarkerCluster()
+    broad_cluster = MarkerCluster()
+    primary_cluster.add_to(primary_group)
+    broad_cluster.add_to(broad_group)
 
     for lot in lots:
         wkt = _get_geometry_wkt(conn, lot["bbl"])
@@ -74,14 +79,14 @@ def generate_map(conn: sqlite3.Connection, output_path: str, primary_agencies: l
         except (json.JSONDecodeError, TypeError):
             reasons_list = []
 
-        reasons_html = "<br>".join(f"&bull; {r}" for r in reasons_list)
+        reasons_html = "<br>".join(f"&bull; {html.escape(str(r))}" for r in reasons_list)
         popup_html = f"""
         <div style="min-width:200px">
-            <b>BBL:</b> {lot['bbl']}<br>
-            <b>Address:</b> {lot.get('address', 'N/A')}<br>
-            <b>Agency:</b> {lot.get('owner_agency', 'N/A')}<br>
+            <b>BBL:</b> {html.escape(str(lot['bbl']))}<br>
+            <b>Address:</b> {html.escape(str(lot.get('address', 'N/A')))}<br>
+            <b>Agency:</b> {html.escape(str(lot.get('owner_agency', 'N/A')))}<br>
             <b>Lot Area:</b> {lot.get('lot_area', 0):,.0f} sq ft<br>
-            <b>Zoning:</b> {lot.get('zoning', 'N/A')}<br>
+            <b>Zoning:</b> {html.escape(str(lot.get('zoning', 'N/A')))}<br>
             <b>Fail Reasons:</b><br>{reasons_html}
         </div>
         """
@@ -98,9 +103,42 @@ def generate_map(conn: sqlite3.Connection, output_path: str, primary_agencies: l
         else:
             marker.add_to(broad_cluster)
 
-    primary_cluster.add_to(m)
-    broad_cluster.add_to(m)
-    folium.LayerControl().add_to(m)
+    primary_group.add_to(m)
+    broad_group.add_to(m)
+    folium.LayerControl(collapsed=False).add_to(m)
+
+    legend_html = """
+    <div style="
+        position: fixed; bottom: 30px; right: 10px; z-index: 1000;
+        background: white; padding: 14px 18px; border-radius: 6px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3); font-size: 13px;
+        line-height: 1.6; max-width: 340px;
+    ">
+        <div style="font-weight: bold; font-size: 14px; margin-bottom: 8px;">
+            Forest Garden Scout
+        </div>
+        <div style="margin-bottom: 8px;">
+            <span style="display:inline-block;width:12px;height:12px;background:#38a143;border-radius:50%;vertical-align:middle;"></span>
+                <b>Green</b> &mdash; Primary targets (HPD, DCAS, MTA)<br>
+            <span style="display:inline-block;width:12px;height:12px;background:#38a0d0;border-radius:50%;vertical-align:middle;"></span>
+                <b>Blue</b> &mdash; Broad net (DOT, DEP, NYCHA, SCA, DOE, PARKS)
+        </div>
+        <div style="font-weight: bold; margin-bottom: 4px;">Fail Reasons (why it's a candidate)</div>
+        <div style="font-size: 12px;">
+            <b>below_zoning_min_area</b><br>
+            Lot is smaller than the zoning district's minimum lot size<br>
+            <b>below_zoning_min_frontage</b><br>
+            Street frontage is narrower than the zoning minimum<br>
+            <b>no_residential_far</b><br>
+            Zoning doesn't allow any residential floor area<br>
+            <b>irregular_geometry</b><br>
+            Lot is flagged as irregularly shaped with low compactness<br>
+            <b>has_easements</b><br>
+            Lot has easement restrictions limiting use
+        </div>
+    </div>
+    """
+    m.get_root().html.add_child(folium.Element(legend_html))
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
     m.save(output_path)
     log.info("Map saved to %s (%d lots)", output_path, len(lots))

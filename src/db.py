@@ -79,8 +79,9 @@ def _has_spatialite(conn: sqlite3.Connection) -> bool:
 
 
 def insert_lot(conn: sqlite3.Connection, lot: dict) -> None:
-    """Insert or replace a lot record."""
-    wkt = lot.pop("wkt", None)
+    """Insert or replace a lot record. Does not commit — caller should commit."""
+    wkt = lot.get("wkt")
+    lot_data = {k: v for k, v in lot.items() if k != "wkt"}
 
     conn.execute("""
         INSERT OR REPLACE INTO lots (
@@ -94,30 +95,27 @@ def insert_lot(conn: sqlite3.Connection, lot: dict) -> None:
             :resid_far, :built_far, :irr_lot_code, :compactness,
             :easement_count, :fail_reasons, :flags
         )
-    """, lot)
+    """, lot_data)
 
     if wkt:
         if _has_spatialite(conn):
             conn.execute(
                 "UPDATE lots SET geometry = GeomFromText(?, 4326) WHERE bbl = ?",
-                (wkt, lot["bbl"]),
+                (wkt, lot_data["bbl"]),
             )
         else:
             conn.execute(
                 "INSERT OR REPLACE INTO lots_geometry_fallback (bbl, wkt) VALUES (?, ?)",
-                (lot["bbl"], wkt),
+                (lot_data["bbl"], wkt),
             )
-
-    conn.commit()
 
 
 def insert_deed_restriction(conn: sqlite3.Connection, record: dict) -> None:
-    """Insert a deed restriction record."""
+    """Insert a deed restriction record. Does not commit — caller should commit."""
     conn.execute("""
         INSERT INTO deed_restrictions (bbl, restriction, detail)
         VALUES (:bbl, :restriction, :detail)
     """, record)
-    conn.commit()
 
 
 def get_lot_by_bbl(conn: sqlite3.Connection, bbl: str) -> Optional[dict]:

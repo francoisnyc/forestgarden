@@ -26,41 +26,38 @@ def test_build_soda_url_with_offset():
 
 @patch("src.fetch.requests.get")
 def test_fetch_mappluto_saves_file(mock_get, tmp_path):
-    feature = {
-        "type": "Feature",
-        "properties": {"bbl": "1000010001", "ownername": "HPD"},
-        "geometry": {"type": "Polygon", "coordinates": [[[-74, 40], [-74, 41], [-73, 41], [-73, 40], [-74, 40]]]},
-    }
-    geojson_page = {"type": "FeatureCollection", "features": [feature]}
-    empty_page = {"type": "FeatureCollection", "features": []}
+    # SODA API returns flat JSON arrays, not GeoJSON
+    record = {"bbl": "1000010001", "ownername": "HPD", "latitude": "40.7", "longitude": "-74.0"}
 
     response_1 = MagicMock()
     response_1.status_code = 200
-    response_1.json.return_value = geojson_page
+    response_1.json.return_value = [record]
 
     response_2 = MagicMock()
     response_2.status_code = 200
-    response_2.json.return_value = empty_page
+    response_2.json.return_value = []
 
     mock_get.side_effect = [response_1, response_2]
 
     config = {
         "sources": {
             "mappluto": {
-                "base_url": "https://data.cityofnewyork.us/resource/f888-ni5f.geojson",
+                "base_url": "https://data.cityofnewyork.us/resource/64uk-42ks.json",
                 "batch_size": 5000,
             }
         }
     }
 
-    output_path = str(tmp_path / "mappluto.geojson")
+    output_path = str(tmp_path / "mappluto.json")
     count = fetch_mappluto(config, output_path)
     assert count == 1
     assert os.path.exists(output_path)
 
     with open(output_path) as f:
         data = json.load(f)
-    assert len(data["features"]) == 1
+    assert isinstance(data, list)
+    assert len(data) == 1
+    assert data[0]["bbl"] == "1000010001"
 
 
 @patch("src.fetch.requests.get")

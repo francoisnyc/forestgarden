@@ -85,12 +85,35 @@ def run_buildability_tests(lot: dict, config: dict) -> list:
     return reasons
 
 
-def process_lots(geojson_path: str, deed_restrictions_path: str, config: dict, db_conn) -> dict:
-    """Process raw MapPLUTO GeoJSON and write candidates to database."""
+def _normalize_records(raw_data):
+    """Normalize input data to a list of (props, geom_json) tuples.
+
+    Handles two formats:
+    - GeoJSON FeatureCollection (from tests): {"type": "FeatureCollection", "features": [...]}
+    - Flat JSON array (from live SODA API): [{...}, {...}, ...]
+    """
+    if isinstance(raw_data, dict) and "features" in raw_data:
+        # GeoJSON FeatureCollection
+        for feature in raw_data["features"]:
+            yield feature.get("properties", {}), feature.get("geometry")
+    elif isinstance(raw_data, list):
+        # Flat JSON records from SODA API
+        for record in raw_data:
+            yield record, None
+    else:
+        return
+
+
+def process_lots(data_path: str, deed_restrictions_path: str, config: dict, db_conn) -> dict:
+    """Process raw MapPLUTO data and write candidates to database.
+
+    Accepts both GeoJSON FeatureCollection (from tests) and flat JSON arrays
+    (from live SODA API).
+    """
     from src.db import insert_lot, insert_deed_restriction
 
-    with open(geojson_path) as f:
-        geojson = json.load(f)
+    with open(data_path) as f:
+        raw_data = json.load(f)
 
     deed_lookup = {}
     with open(deed_restrictions_path) as f:
@@ -107,10 +130,8 @@ def process_lots(geojson_path: str, deed_restrictions_path: str, config: dict, d
     stats = {"total_fetched": 0, "public_owned": 0, "candidates": 0,
              "by_borough": {}, "by_agency": {}, "by_fail_reason": {}}
 
-    for feature in geojson.get("features", []):
+    for props, geom_json in _normalize_records(raw_data):
         stats["total_fetched"] += 1
-        props = feature.get("properties", {})
-        geom_json = feature.get("geometry")
 
         owner_name = props.get("ownername", "")
         agency = match_agency(owner_name, all_agencies)
@@ -121,7 +142,15 @@ def process_lots(geojson_path: str, deed_restrictions_path: str, config: dict, d
         bbl = str(props.get("bbl", ""))
         borough = str(props.get("borough", ""))
         zoning = props.get("zonedist1", "")
+        land_use = props.get("landuse", "")
 
+        # Skip non-developable land uses and zonings (parks, transportation, etc.)
+        excluded_lu = config["filters"].get("excluded_land_uses", [])
+        excluded_z = config["filters"].get("excluded_zonings", [])
+        if land_use in excluded_lu or zoning in excluded_z:
+            continue
+
+        # Compute geometry: use polygon if available (GeoJSON), else point from lat/lon
         compactness = 1.0
         wkt = None
         if geom_json:
@@ -131,6 +160,15 @@ def process_lots(geojson_path: str, deed_restrictions_path: str, config: dict, d
                 wkt = poly.wkt
             except Exception:
                 pass
+        else:
+            # Flat SODA records have latitude/longitude fields
+            lat = props.get("latitude")
+            lon = props.get("longitude")
+            if lat and lon:
+                try:
+                    wkt = f"POINT ({float(lon)} {float(lat)})"
+                except (ValueError, TypeError):
+                    pass
 
         lot_record = {
             "lot_area": float(props.get("lotarea", 0) or 0),
@@ -153,7 +191,6 @@ def process_lots(geojson_path: str, deed_restrictions_path: str, config: dict, d
             key = reason.split(":")[0]
             stats["by_fail_reason"][key] = stats["by_fail_reason"].get(key, 0) + 1
 
-        land_use = props.get("landuse", "")
         flags = {}
         if land_use == config["filters"]["vacant_land_use"]:
             flags["vacant"] = True
@@ -186,6 +223,7 @@ def process_lots(geojson_path: str, deed_restrictions_path: str, config: dict, d
                 "detail": deed_rec.get("description_of_restriction_continued", ""),
             })
 
+    db_conn.commit()
     return stats
 
 

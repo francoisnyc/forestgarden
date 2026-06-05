@@ -1,5 +1,4 @@
 requests>=2.31
-geopandas>=0.14
 shapely>=2.0
 folium>=0.15
 pyyaml>=6.0
