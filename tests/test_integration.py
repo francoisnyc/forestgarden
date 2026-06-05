@@ -122,6 +122,9 @@ def test_full_pipeline(setup):
     reasons = json.loads(hpd_lot["fail_reasons"])
     assert any("below_zoning_min_area" in r for r in reasons)
 
+    # Shadow risk should be present (unknown for GeoJSON test data without xcoord/ycoord)
+    assert hpd_lot["shadow_risk"] is not None
+
     map_path = str(setup["tmp_path"] / "map.html")
     generate_map(conn, map_path, config["agencies"]["primary"])
     assert os.path.exists(map_path)
@@ -153,4 +156,58 @@ def test_deed_restrictions_joined(setup):
     assert len(rows) == 1
     assert "Height limit" in rows[0]["restriction"]
 
+    conn.close()
+
+
+def test_shadow_risk_with_flat_records(tmp_path):
+    """Shadow risk is computed for flat JSON records with xcoord/ycoord."""
+    records = [
+        {
+            "bbl": "2000010001", "borough": "BX", "borocode": "2",
+            "block": "00001", "lot": "0001",
+            "address": "1 TEST ST", "ownername": "NYC DEPT OF HOUSING PRESERVATION",
+            "lotarea": "500", "lotfront": "15", "lotdepth": "33",
+            "landuse": "11", "zonedist1": "R6",
+            "residfar": "2.0", "builtfar": "0",
+            "irrlotcode": "", "easements": "0",
+            "latitude": "40.82", "longitude": "-73.92",
+            "xcoord": "1020000", "ycoord": "250000",
+            "numfloors": "0",
+        },
+        # Tall building 60ft to the south of the candidate
+        {
+            "bbl": "2000010099", "borough": "BX", "borocode": "2",
+            "block": "00001", "lot": "0099",
+            "address": "99 TEST ST", "ownername": "JOHN SMITH",
+            "lotarea": "2000", "lotfront": "20", "lotdepth": "100",
+            "landuse": "1", "zonedist1": "R6",
+            "residfar": "2.0", "builtfar": "1.0",
+            "irrlotcode": "", "easements": "0",
+            "latitude": "40.819", "longitude": "-73.92",
+            "xcoord": "1020000", "ycoord": "249940",
+            "numfloors": "12",
+        },
+    ]
+    data_path = str(tmp_path / "mappluto.json")
+    with open(data_path, "w") as f:
+        json.dump(records, f)
+
+    deed_path = str(tmp_path / "deeds.json")
+    with open(deed_path, "w") as f:
+        json.dump([], f)
+
+    with open("config.yaml") as f:
+        config = yaml.safe_load(f)
+
+    db_path = str(tmp_path / "scout.db")
+    conn = create_database(db_path)
+    stats = process_lots(data_path, deed_path, config, conn)
+
+    assert stats["candidates"] == 1
+    lots = get_all_lots(conn)
+    lot = lots[0]
+    assert lot["shadow_risk"] == "high"
+    detail = json.loads(lot["shadow_detail"])
+    assert "south" in detail
+    assert detail["south"]["numfloors"] == 12
     conn.close()
