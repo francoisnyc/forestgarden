@@ -145,6 +145,13 @@ def cmd_stats(args):
     for key, count in sorted(all_reasons.items(), key=lambda x: -x[1]):
         print(f"  {key:<35} {count:>6,}")
 
+    print(f"\nBy shadow risk:")
+    for row in conn.execute(
+        "SELECT shadow_risk, COUNT(*) as c FROM lots GROUP BY shadow_risk ORDER BY c DESC"
+    ):
+        label = row["shadow_risk"] or "unknown"
+        print(f"  {label:<20} {row['c']:>6,}")
+
     conn.close()
 
 

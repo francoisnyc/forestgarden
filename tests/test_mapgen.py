@@ -16,6 +16,7 @@ def db(tmp_path):
         "irr_lot_code": "Y", "compactness": 0.35, "easement_count": 0,
         "fail_reasons": json.dumps(["no_residential_far: resid_far=0"]),
         "flags": json.dumps({"vacant": True}),
+        "shadow_risk": "low", "shadow_detail": "no tall buildings to south",
         "wkt": "POLYGON ((-74.006 40.713, -74.006 40.714, -74.005 40.714, -74.005 40.713, -74.006 40.713))",
     })
     insert_lot(conn, {
@@ -26,6 +27,7 @@ def db(tmp_path):
         "irr_lot_code": None, "compactness": 0.8, "easement_count": 1,
         "fail_reasons": json.dumps(["has_easements: count=1"]),
         "flags": json.dumps({}),
+        "shadow_risk": "high", "shadow_detail": "tall building 100ft to south",
         "wkt": "POLYGON ((-73.978 40.685, -73.978 40.686, -73.977 40.686, -73.977 40.685, -73.978 40.685))",
     })
     yield conn
