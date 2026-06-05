@@ -38,6 +38,8 @@ def _make_lot(**overrides):
         "fail_reasons": json.dumps(["below_zoning_min_area: 500 < 1700 (R6)"]),
         "flags": json.dumps({"vacant": True}),
         "wkt": "POLYGON ((-74.0 40.7, -74.0 40.701, -73.999 40.701, -73.999 40.7, -74.0 40.7))",
+        "shadow_risk": None,
+        "shadow_detail": None,
     }
     defaults.update(overrides)
     return defaults
@@ -81,3 +83,11 @@ def test_duplicate_bbl_replaces(db):
     insert_lot(db, _make_lot(bbl="1000010001", lot_area=600.0))
     result = get_lot_by_bbl(db, "1000010001")
     assert result["lot_area"] == 600.0
+
+
+def test_insert_lot_with_shadow_fields(db):
+    lot = _make_lot(shadow_risk="high", shadow_detail='{"south": {"numfloors": 6}}')
+    insert_lot(db, lot)
+    result = get_lot_by_bbl(db, "1000010001")
+    assert result["shadow_risk"] == "high"
+    assert '"numfloors": 6' in result["shadow_detail"]
