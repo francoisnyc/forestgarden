@@ -64,9 +64,17 @@ def generate_map(conn: sqlite3.Connection, output_path: str, primary_agencies: l
     broad_cluster = MarkerCluster()
     primary_cluster.add_to(primary_group)
     broad_cluster.add_to(broad_group)
-    shadow_group = folium.FeatureGroup(name="Shadow Risk", show=False)
-    shadow_cluster = MarkerCluster()
-    shadow_cluster.add_to(shadow_group)
+    shadow_groups = {
+        "low": folium.FeatureGroup(name="Shadow: Low Risk", show=False),
+        "medium": folium.FeatureGroup(name="Shadow: Medium Risk", show=False),
+        "high": folium.FeatureGroup(name="Shadow: High Risk", show=False),
+        "unknown": folium.FeatureGroup(name="Shadow: Unknown", show=False),
+    }
+    shadow_clusters = {}
+    for key, group in shadow_groups.items():
+        cluster = MarkerCluster()
+        cluster.add_to(group)
+        shadow_clusters[key] = cluster
 
     for lot in lots:
         wkt = _get_geometry_wkt(conn, lot["bbl"])
@@ -109,16 +117,18 @@ def generate_map(conn: sqlite3.Connection, output_path: str, primary_agencies: l
         shadow_risk = lot.get("shadow_risk", "unknown")
         shadow_colors = {"low": "green", "medium": "orange", "high": "red"}
         shadow_color = shadow_colors.get(shadow_risk, "gray")
+        shadow_key = shadow_risk if shadow_risk in shadow_clusters else "unknown"
         shadow_marker = folium.Marker(
             location=coords,
             popup=folium.Popup(popup_html, max_width=300),
             icon=folium.Icon(color=shadow_color, icon="sun-o", prefix="fa"),
         )
-        shadow_marker.add_to(shadow_cluster)
+        shadow_marker.add_to(shadow_clusters[shadow_key])
 
     primary_group.add_to(m)
     broad_group.add_to(m)
-    shadow_group.add_to(m)
+    for group in shadow_groups.values():
+        group.add_to(m)
     folium.LayerControl(collapsed=False).add_to(m)
 
     legend_html = """
@@ -150,7 +160,7 @@ def generate_map(conn: sqlite3.Connection, output_path: str, primary_agencies: l
             <b>has_easements</b><br>
             Lot has easement restrictions limiting use
         </div>
-        <div style="font-weight: bold; margin-top: 8px; margin-bottom: 4px;">Shadow Risk (toggle layer above)</div>
+        <div style="font-weight: bold; margin-top: 8px; margin-bottom: 4px;">Shadow Risk (toggle layers above)</div>
         <div style="font-size: 12px;">
             <span style="display:inline-block;width:12px;height:12px;background:#38a143;border-radius:50%;vertical-align:middle;"></span>
                 <b>Low</b> &mdash; Morning sun clears by 10AM<br>
