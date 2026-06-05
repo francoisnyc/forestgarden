@@ -64,6 +64,9 @@ def generate_map(conn: sqlite3.Connection, output_path: str, primary_agencies: l
     broad_cluster = MarkerCluster()
     primary_cluster.add_to(primary_group)
     broad_cluster.add_to(broad_group)
+    shadow_group = folium.FeatureGroup(name="Shadow Risk", show=False)
+    shadow_cluster = MarkerCluster()
+    shadow_cluster.add_to(shadow_group)
 
     for lot in lots:
         wkt = _get_geometry_wkt(conn, lot["bbl"])
@@ -103,8 +106,19 @@ def generate_map(conn: sqlite3.Connection, output_path: str, primary_agencies: l
         else:
             marker.add_to(broad_cluster)
 
+        shadow_risk = lot.get("shadow_risk", "unknown")
+        shadow_colors = {"low": "green", "medium": "orange", "high": "red"}
+        shadow_color = shadow_colors.get(shadow_risk, "gray")
+        shadow_marker = folium.Marker(
+            location=coords,
+            popup=folium.Popup(popup_html, max_width=300),
+            icon=folium.Icon(color=shadow_color, icon="sun-o", prefix="fa"),
+        )
+        shadow_marker.add_to(shadow_cluster)
+
     primary_group.add_to(m)
     broad_group.add_to(m)
+    shadow_group.add_to(m)
     folium.LayerControl(collapsed=False).add_to(m)
 
     legend_html = """
@@ -135,6 +149,15 @@ def generate_map(conn: sqlite3.Connection, output_path: str, primary_agencies: l
             Lot is flagged as irregularly shaped with low compactness<br>
             <b>has_easements</b><br>
             Lot has easement restrictions limiting use
+        </div>
+        <div style="font-weight: bold; margin-top: 8px; margin-bottom: 4px;">Shadow Risk (toggle layer above)</div>
+        <div style="font-size: 12px;">
+            <span style="display:inline-block;width:12px;height:12px;background:#38a143;border-radius:50%;vertical-align:middle;"></span>
+                <b>Low</b> &mdash; Morning sun clears by 10AM<br>
+            <span style="display:inline-block;width:12px;height:12px;background:#f0960f;border-radius:50%;vertical-align:middle;"></span>
+                <b>Medium</b> &mdash; Shadowed at 10AM, clear by noon<br>
+            <span style="display:inline-block;width:12px;height:12px;background:#d63e2a;border-radius:50%;vertical-align:middle;"></span>
+                <b>High</b> &mdash; Shadowed through noon (winter solstice)
         </div>
     </div>
     """
