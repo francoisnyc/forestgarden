@@ -111,3 +111,50 @@ def fetch_deed_restrictions(config: dict, output_path: str) -> int:
 
     log.info("Deed restrictions download complete: %d records", len(all_records))
     return len(all_records)
+
+
+_ARCGIS_MAPPLUTO_URL = (
+    "https://services5.arcgis.com/GfwWNkhOj9bNBqoJ/arcgis/rest/services/"
+    "MAPPLUTO/FeatureServer/0/query"
+)
+
+
+def fetch_lot_polygons(bbls: list, output_path: str) -> int:
+    """Fetch lot polygon geometry from DCP's ArcGIS MapPLUTO FeatureServer.
+
+    Queries in batches of 100 BBLs. Saves a GeoJSON FeatureCollection
+    mapping BBL -> polygon geometry.
+
+    Returns the number of polygons fetched.
+    """
+    batch_size = 100
+    all_features = []
+
+    for i in range(0, len(bbls), batch_size):
+        batch = bbls[i:i + batch_size]
+        # BBLs in our DB may have decimals from SODA — strip to integer
+        clean = [str(b).split(".")[0] for b in batch]
+        where = "BBL IN (" + ",".join(clean) + ")"
+
+        log.info("Fetching lot polygons batch %d-%d of %d ...",
+                 i + 1, min(i + batch_size, len(bbls)), len(bbls))
+
+        resp = requests.get(
+            _ARCGIS_MAPPLUTO_URL,
+            params={"where": where, "outFields": "BBL", "f": "geojson",
+                    "resultRecordCount": batch_size},
+            timeout=120,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        features = data.get("features", [])
+        all_features.extend(features)
+
+    collection = {"type": "FeatureCollection", "features": all_features}
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    with open(output_path, "w") as f:
+        json.dump(collection, f)
+
+    log.info("Lot polygons download complete: %d polygons for %d BBLs",
+             len(all_features), len(bbls))
+    return len(all_features)

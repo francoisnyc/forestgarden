@@ -43,15 +43,21 @@ def _get_geometry_wkt(conn: sqlite3.Connection, bbl: str) -> Optional[str]:
     return None
 
 
-def _wkt_to_coords(wkt: str) -> Optional[list]:
-    """Extract centroid coordinates from a WKT POLYGON string."""
+def _parse_wkt(wkt: str):
+    """Parse WKT string into a Shapely geometry, or None on failure."""
     try:
         from shapely import wkt as shapely_wkt
-        geom = shapely_wkt.loads(wkt)
-        centroid = geom.centroid
-        return [centroid.y, centroid.x]
+        return shapely_wkt.loads(wkt)
     except Exception:
         return None
+
+
+def _wkt_to_coords(wkt: str) -> Optional[list]:
+    """Extract centroid coordinates from a WKT POLYGON string."""
+    geom = _parse_wkt(wkt)
+    if geom is None:
+        return None
+    return [geom.centroid.y, geom.centroid.x]
 
 
 def generate_map(conn: sqlite3.Connection, output_path: str, primary_agencies: list) -> None:
@@ -64,6 +70,7 @@ def generate_map(conn: sqlite3.Connection, output_path: str, primary_agencies: l
     broad_cluster = MarkerCluster()
     primary_cluster.add_to(primary_group)
     broad_cluster.add_to(broad_group)
+    lot_boundaries = folium.FeatureGroup(name="Lot Boundaries", show=True)
     shadow_groups = {
         "low": folium.FeatureGroup(name="Shadow: Low Risk", show=False),
         "medium": folium.FeatureGroup(name="Shadow: Medium Risk", show=False),
@@ -80,9 +87,10 @@ def generate_map(conn: sqlite3.Connection, output_path: str, primary_agencies: l
         wkt = _get_geometry_wkt(conn, lot["bbl"])
         if not wkt:
             continue
-        coords = _wkt_to_coords(wkt)
-        if not coords:
+        geom = _parse_wkt(wkt)
+        if geom is None:
             continue
+        coords = [geom.centroid.y, geom.centroid.x]
 
         fail_reasons = lot.get("fail_reasons", "[]")
         try:
@@ -125,6 +133,18 @@ def generate_map(conn: sqlite3.Connection, output_path: str, primary_agencies: l
         )
         shadow_marker.add_to(shadow_clusters[shadow_key])
 
+        # Draw lot boundary polygon if geometry is not a point
+        if geom.geom_type in ("Polygon", "MultiPolygon"):
+            boundary_color = "#38a143" if is_primary else "#38a0d0"
+            folium.GeoJson(
+                geom.__geo_interface__,
+                style_function=lambda _feat, c=boundary_color: {
+                    "color": c, "weight": 2, "fillOpacity": 0.15,
+                },
+                popup=folium.Popup(popup_html, max_width=300),
+            ).add_to(lot_boundaries)
+
+    lot_boundaries.add_to(m)
     primary_group.add_to(m)
     broad_group.add_to(m)
     for group in shadow_groups.values():

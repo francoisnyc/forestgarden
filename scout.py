@@ -74,6 +74,7 @@ def cmd_filter(args):
 
 def cmd_map(args):
     import sqlite3
+    from src.fetch import fetch_lot_polygons
     from src.mapgen import generate_map, export_geojson
     config = load_config(args.config)
 
@@ -88,6 +89,46 @@ def cmd_map(args):
         conn.load_extension("mod_spatialite")
     except (OSError, sqlite3.OperationalError, AttributeError):
         pass
+
+    # Fetch lot polygon geometry from ArcGIS for candidate BBLs
+    bbls = [r["bbl"] for r in conn.execute("SELECT bbl FROM lots").fetchall()]
+    polygon_path = os.path.join(args.raw_dir, "lot_polygons.geojson")
+    if bbls:
+        log.info("Fetching lot polygons for %d candidates...", len(bbls))
+        fetch_lot_polygons(bbls, polygon_path)
+        # Load polygons and update geometry in database
+        with open(polygon_path) as f:
+            poly_data = json.load(f)
+        from shapely.geometry import shape as shapely_shape
+        updated = 0
+        for feature in poly_data.get("features", []):
+            geom = feature.get("geometry")
+            if not geom:
+                continue
+            bbl_num = feature.get("properties", {}).get("BBL")
+            if not bbl_num:
+                continue
+            bbl_str = str(int(bbl_num))
+            try:
+                wkt = shapely_shape(geom).wkt
+            except Exception:
+                continue
+            # Update fallback geometry table
+            conn.execute(
+                "INSERT OR REPLACE INTO lots_geometry_fallback (bbl, wkt) VALUES (?, ?)",
+                (bbl_str, wkt),
+            )
+            # Also try matching BBLs with trailing decimals from SODA
+            for row in conn.execute(
+                "SELECT bbl FROM lots WHERE bbl LIKE ?", (bbl_str + "%",)
+            ).fetchall():
+                conn.execute(
+                    "INSERT OR REPLACE INTO lots_geometry_fallback (bbl, wkt) VALUES (?, ?)",
+                    (row["bbl"], wkt),
+                )
+                updated += 1
+        conn.commit()
+        log.info("Updated geometry for %d lots", updated)
 
     os.makedirs(args.output_dir, exist_ok=True)
     map_path = os.path.join(args.output_dir, "scout_map.html")
