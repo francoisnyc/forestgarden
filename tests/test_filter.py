@@ -37,6 +37,16 @@ def test_match_agency_none_input():
     assert match_agency(None, ["HPD"]) is None
 
 
+def test_match_agency_fire_dept_not_dep():
+    """FIRE DEPARTMENT should not match DEP."""
+    assert match_agency("FIRE DEPARTMENT OF NEW YORK", ["DEP", "DOT"]) is None
+
+
+def test_match_agency_police_dept_not_dep():
+    """NYC POLICE DEPARTMENT should not match DEP."""
+    assert match_agency("NYC POLICE DEPARTMENT", ["DEP"]) is None
+
+
 # --- Compactness ---
 
 def test_compactness_square():
