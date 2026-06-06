@@ -53,3 +53,6 @@ filters:
   excluded_zonings:
     - "PARK"
     - "BPC"
+  food_forest_min_area: 1500
+  food_forest_max_area: 5000
+  food_forest_min_width: 20

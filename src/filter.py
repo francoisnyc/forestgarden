@@ -185,6 +185,15 @@ def process_lots(data_path: str, deed_restrictions_path: str, config: dict, db_c
             "zoning": zoning,
         }
 
+        # Food forest viability: lot must be usable size and width
+        lot_area = lot_record["lot_area"]
+        lot_front = lot_record["lot_front"]
+        min_area = config["filters"].get("food_forest_min_area", 1500)
+        max_area = config["filters"].get("food_forest_max_area", 5000)
+        min_width = config["filters"].get("food_forest_min_width", 20)
+        if not (min_area <= lot_area <= max_area) or lot_front < min_width:
+            continue
+
         fail_reasons = run_buildability_tests(lot_record, config)
         if not fail_reasons:
             continue

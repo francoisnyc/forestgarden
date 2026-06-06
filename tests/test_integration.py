@@ -46,9 +46,9 @@ def _make_feature(bbl, owner, lot_area, lot_front, resid_far, zoning,
 def setup(tmp_path):
     """Set up synthetic data files and config."""
     features = [
-        # Candidate: HPD-owned, below min area
+        # Candidate: HPD-owned, below zoning min area (1600 < 1700 for R6)
         _make_feature("1000010001", "NYC DEPT OF HOUSING PRESERVATION & DEVELOPMENT",
-                      500, 25, 2.0, "R6"),
+                      1600, 25, 2.0, "R6"),
         # Candidate: DCAS-owned, no residential FAR
         _make_feature("1000010002", "DEPT OF CITYWIDE ADMIN SERVICES",
                       5000, 25, 0, "M1-2"),
@@ -166,7 +166,7 @@ def test_shadow_risk_with_flat_records(tmp_path):
             "bbl": "2000010001", "borough": "BX", "borocode": "2",
             "block": "00001", "lot": "0001",
             "address": "1 TEST ST", "ownername": "NYC DEPT OF HOUSING PRESERVATION",
-            "lotarea": "500", "lotfront": "15", "lotdepth": "33",
+            "lotarea": "1600", "lotfront": "25", "lotdepth": "33",
             "landuse": "11", "zonedist1": "R6",
             "residfar": "2.0", "builtfar": "0",
             "irrlotcode": "", "easements": "0",
