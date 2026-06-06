@@ -47,6 +47,30 @@ def test_match_agency_police_dept_not_dep():
     assert match_agency("NYC POLICE DEPARTMENT", ["DEP"]) is None
 
 
+def test_match_agency_private_name_not_sca():
+    """Private names containing 'SCA' should not match SCA."""
+    assert match_agency("SCACCIA PROPERTY HOLDINGS VI, LLC", ["SCA"]) is None
+    assert match_agency("OSCAR REYES", ["SCA"]) is None
+    assert match_agency("FRANCESCA OLIVERI", ["SCA"]) is None
+
+
+def test_match_agency_private_name_not_parks():
+    """Private names containing 'PARKS' should not match PARKS."""
+    assert match_agency("3920 PARKS CORP", ["PARKS"]) is None
+    assert match_agency("LARRY PARKS", ["PARKS"]) is None
+
+
+def test_match_agency_mta_lirr():
+    """MTA - LIRR should match MTA."""
+    assert match_agency("MTA - LIRR", ["MTA"]) == "MTA"
+    assert match_agency("MTA-BRIDGES AND TUNNELS", ["MTA"]) == "MTA"
+
+
+def test_match_agency_private_name_not_mta():
+    """Private names containing 'MTA' substring should not match MTA."""
+    assert match_agency("MUMTAZ, CHAUDHARY FARRUKH", ["MTA"]) is None
+
+
 # --- Compactness ---
 
 def test_compactness_square():
