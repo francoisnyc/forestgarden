@@ -134,6 +134,7 @@ def process_lots(data_path: str, deed_restrictions_path: str, config: dict, db_c
 
     stats = {"total_fetched": 0, "public_owned": 0, "candidates": 0,
              "by_borough": {}, "by_agency": {}, "by_fail_reason": {}}
+    candidate_coords = []  # (bbl, lat, lon) for wetland check
 
     for props, geom_json in _normalize_records(raw_data):
         stats["total_fetched"] += 1
@@ -236,6 +237,14 @@ def process_lots(data_path: str, deed_restrictions_path: str, config: dict, db_c
         db_lot["shadow_detail"] = json.dumps(shadow_result["shadow_detail"])
         insert_lot(db_conn, db_lot)
 
+        lat = props.get("latitude")
+        lon = props.get("longitude")
+        if lat and lon:
+            try:
+                candidate_coords.append((bbl, float(lat), float(lon)))
+            except (TypeError, ValueError):
+                pass
+
         for deed_rec in deed_lookup.get(bbl, []):
             insert_deed_restriction(db_conn, {
                 "bbl": bbl,
@@ -244,6 +253,19 @@ def process_lots(data_path: str, deed_restrictions_path: str, config: dict, db_c
             })
 
     db_conn.commit()
+
+    # Post-filter: remove candidates that overlap wetlands
+    from src.fetch import fetch_wetland_bbls
+    if candidate_coords:
+        wetland_bbls = fetch_wetland_bbls(candidate_coords)
+        if wetland_bbls:
+            for wbbl in wetland_bbls:
+                db_conn.execute("DELETE FROM lots WHERE bbl = ?", (wbbl,))
+                stats["candidates"] -= 1
+            db_conn.commit()
+            log.info("Removed %d wetland lots", len(wetland_bbls))
+            stats["wetland_removed"] = len(wetland_bbls)
+
     return stats
 
 

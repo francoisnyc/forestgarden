@@ -113,6 +113,50 @@ def fetch_deed_restrictions(config: dict, output_path: str) -> int:
     return len(all_records)
 
 
+_WETLANDS_URL = "https://data.cityofnewyork.us/resource/p48c-iqtu.json"
+
+
+def fetch_wetland_bbls(bbls_with_coords: list) -> set:
+    """Check which candidate lots overlap NYC wetlands.
+
+    Args:
+        bbls_with_coords: list of (bbl, lat, lon) tuples
+
+    Returns:
+        Set of BBLs that are within 30m of a wetland polygon.
+    """
+    wetland_bbls = set()
+    headers = {}
+    app_token = _get_app_token()
+    if app_token:
+        headers["X-App-Token"] = app_token
+
+    for i, (bbl, lat, lon) in enumerate(bbls_with_coords):
+        try:
+            resp = requests.get(
+                _WETLANDS_URL,
+                params={
+                    "$where": f"within_circle(multipolygon,{lat},{lon},30)",
+                    "$select": "classname",
+                    "$limit": 1,
+                },
+                headers=headers,
+                timeout=30,
+            )
+            resp.raise_for_status()
+            if resp.json():
+                wetland_bbls.add(bbl)
+        except Exception:
+            pass
+        if (i + 1) % 100 == 0:
+            log.info("Wetland check: %d/%d lots checked, %d in wetlands",
+                     i + 1, len(bbls_with_coords), len(wetland_bbls))
+
+    log.info("Wetland check complete: %d/%d lots in wetlands",
+             len(wetland_bbls), len(bbls_with_coords))
+    return wetland_bbls
+
+
 _ARCGIS_MAPPLUTO_URL = (
     "https://services5.arcgis.com/GfwWNkhOj9bNBqoJ/arcgis/rest/services/"
     "MAPPLUTO/FeatureServer/0/query"
