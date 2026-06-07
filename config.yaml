@@ -47,10 +47,8 @@ zoning_minimums:
 filters:
   compactness_ratio: 0.4
   vacant_land_use: "11"
-  excluded_land_uses:
-    - "7"   # transportation & utility
-    - "8"   # public facilities & institutions
-    - "9"   # open space & outdoor recreation
+  allowed_land_uses:
+    - "11"  # vacant land
   excluded_zonings:
     - "PARK"
     - "BPC"

@@ -149,10 +149,10 @@ def process_lots(data_path: str, deed_restrictions_path: str, config: dict, db_c
         zoning = props.get("zonedist1", "")
         land_use = props.get("landuse", "")
 
-        # Skip non-developable land uses and zonings (parks, transportation, etc.)
-        excluded_lu = config["filters"].get("excluded_land_uses", [])
+        # Only include allowed land uses (vacant land, parking) and skip excluded zonings
+        allowed_lu = config["filters"].get("allowed_land_uses", ["11"])
         excluded_z = config["filters"].get("excluded_zonings", [])
-        if land_use in excluded_lu or zoning in excluded_z:
+        if land_use not in allowed_lu or zoning in excluded_z:
             continue
 
         # Compute geometry: use polygon if available (GeoJSON), else point from lat/lon
