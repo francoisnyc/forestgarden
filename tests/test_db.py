@@ -40,6 +40,7 @@ def _make_lot(**overrides):
         "wkt": "POLYGON ((-74.0 40.7, -74.0 40.701, -73.999 40.701, -73.999 40.7, -74.0 40.7))",
         "shadow_risk": None,
         "shadow_detail": None,
+        "contamination_flag": None,
     }
     defaults.update(overrides)
     return defaults

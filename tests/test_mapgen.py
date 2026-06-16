@@ -17,6 +17,7 @@ def db(tmp_path):
         "fail_reasons": json.dumps(["no_residential_far: resid_far=0"]),
         "flags": json.dumps({"vacant": True}),
         "shadow_risk": "low", "shadow_detail": "no tall buildings to south",
+        "contamination_flag": None,
         "wkt": "POLYGON ((-74.006 40.713, -74.006 40.714, -74.005 40.714, -74.005 40.713, -74.006 40.713))",
     })
     insert_lot(conn, {
@@ -28,6 +29,7 @@ def db(tmp_path):
         "fail_reasons": json.dumps(["has_easements: count=1"]),
         "flags": json.dumps({}),
         "shadow_risk": "high", "shadow_detail": "tall building 100ft to south",
+        "contamination_flag": "Some Gas Works (class A)",
         "wkt": "POLYGON ((-73.978 40.685, -73.978 40.686, -73.977 40.686, -73.977 40.685, -73.978 40.685))",
     })
     yield conn

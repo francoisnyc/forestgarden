@@ -99,6 +99,11 @@ def generate_map(conn: sqlite3.Connection, output_path: str, primary_agencies: l
             reasons_list = []
 
         reasons_html = "<br>".join(f"&bull; {html.escape(str(r))}" for r in reasons_list)
+        contamination = lot.get("contamination_flag")
+        contamination_html = (
+            f'<br><b style="color:red">⚠ Contamination:</b> {html.escape(str(contamination))}'
+            if contamination else ""
+        )
         popup_html = f"""
         <div style="min-width:200px">
             <b>BBL:</b> {html.escape(str(lot['bbl']))}<br>
@@ -106,7 +111,7 @@ def generate_map(conn: sqlite3.Connection, output_path: str, primary_agencies: l
             <b>Agency:</b> {html.escape(str(lot.get('owner_agency', 'N/A')))}<br>
             <b>Lot Area:</b> {lot.get('lot_area', 0):,.0f} sq ft<br>
             <b>Zoning:</b> {html.escape(str(lot.get('zoning', 'N/A')))}<br>
-            <b>Fail Reasons:</b><br>{reasons_html}
+            <b>Fail Reasons:</b><br>{reasons_html}{contamination_html}
         </div>
         """
 

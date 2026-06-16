@@ -157,6 +157,57 @@ def fetch_wetland_bbls(bbls_with_coords: list) -> set:
     return wetland_bbls
 
 
+_REMEDIATION_URL = "https://data.ny.gov/resource/c6ci-rzpg.json"
+_ACTIVE_SITE_CLASSES = {"1", "2", "A", "P", "PR"}
+
+
+def fetch_contamination_flags(bbls_with_coords: list) -> dict:
+    """Check which candidate lots are near active NYS contamination/remediation sites.
+
+    Args:
+        bbls_with_coords: list of (bbl, lat, lon) tuples
+
+    Returns:
+        Dict of bbl -> site name for lots within 100m of an active remediation site.
+    """
+    flags = {}
+    headers = {}
+    app_token = _get_app_token()
+    if app_token:
+        headers["X-App-Token"] = app_token
+
+    classes = ",".join(f"'{c}'" for c in _ACTIVE_SITE_CLASSES)
+    for i, (bbl, lat, lon) in enumerate(bbls_with_coords):
+        try:
+            resp = requests.get(
+                _REMEDIATION_URL,
+                params={
+                    "$where": (
+                        f"within_circle(georeference,{lat},{lon},100)"
+                        f" AND siteclass in({classes})"
+                    ),
+                    "$select": "program_facility_name,siteclass",
+                    "$limit": 1,
+                },
+                headers=headers,
+                timeout=30,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            if data:
+                site = data[0]
+                flags[bbl] = f"{site['program_facility_name']} (class {site['siteclass']})"
+        except Exception:
+            pass
+        if (i + 1) % 100 == 0:
+            log.info("Contamination check: %d/%d lots checked, %d flagged",
+                     i + 1, len(bbls_with_coords), len(flags))
+
+    log.info("Contamination check complete: %d/%d lots near active sites",
+             len(flags), len(bbls_with_coords))
+    return flags
+
+
 _ARCGIS_MAPPLUTO_URL = (
     "https://services5.arcgis.com/GfwWNkhOj9bNBqoJ/arcgis/rest/services/"
     "MAPPLUTO/FeatureServer/0/query"

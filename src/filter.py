@@ -235,6 +235,7 @@ def process_lots(data_path: str, deed_restrictions_path: str, config: dict, db_c
         )
         db_lot["shadow_risk"] = shadow_result["shadow_risk"]
         db_lot["shadow_detail"] = json.dumps(shadow_result["shadow_detail"])
+        db_lot["contamination_flag"] = None
         insert_lot(db_conn, db_lot)
 
         lat = props.get("latitude")
@@ -255,7 +256,7 @@ def process_lots(data_path: str, deed_restrictions_path: str, config: dict, db_c
     db_conn.commit()
 
     # Post-filter: remove candidates that overlap wetlands
-    from src.fetch import fetch_wetland_bbls
+    from src.fetch import fetch_wetland_bbls, fetch_contamination_flags
     if candidate_coords:
         wetland_bbls = fetch_wetland_bbls(candidate_coords)
         if wetland_bbls:
@@ -265,6 +266,18 @@ def process_lots(data_path: str, deed_restrictions_path: str, config: dict, db_c
             db_conn.commit()
             log.info("Removed %d wetland lots", len(wetland_bbls))
             stats["wetland_removed"] = len(wetland_bbls)
+
+        # Flag lots near active contamination/remediation sites
+        contamination_flags = fetch_contamination_flags(candidate_coords)
+        if contamination_flags:
+            for cbbl, site_name in contamination_flags.items():
+                db_conn.execute(
+                    "UPDATE lots SET contamination_flag = ? WHERE bbl = ?",
+                    (site_name, cbbl),
+                )
+            db_conn.commit()
+            log.info("Flagged %d lots near active contamination sites", len(contamination_flags))
+            stats["contamination_flagged"] = len(contamination_flags)
 
     return stats
 

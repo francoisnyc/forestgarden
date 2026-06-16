@@ -40,7 +40,8 @@ def create_database(path: str) -> sqlite3.Connection:
             fail_reasons TEXT,
             flags TEXT,
             shadow_risk TEXT,
-            shadow_detail TEXT
+            shadow_detail TEXT,
+            contamination_flag TEXT
         );
 
         CREATE TABLE IF NOT EXISTS deed_restrictions (
@@ -91,13 +92,13 @@ def insert_lot(conn: sqlite3.Connection, lot: dict) -> None:
             lot_area, lot_front, lot_depth, land_use, zoning,
             resid_far, built_far, irr_lot_code, compactness,
             easement_count, fail_reasons, flags,
-            shadow_risk, shadow_detail
+            shadow_risk, shadow_detail, contamination_flag
         ) VALUES (
             :bbl, :borough, :block, :lot, :address, :owner_name, :owner_agency,
             :lot_area, :lot_front, :lot_depth, :land_use, :zoning,
             :resid_far, :built_far, :irr_lot_code, :compactness,
             :easement_count, :fail_reasons, :flags,
-            :shadow_risk, :shadow_detail
+            :shadow_risk, :shadow_detail, :contamination_flag
         )
     """, lot_data)
 
